@@ -1,0 +1,48 @@
+{
+  "name": "codex-quota-widget",
+  "version": "1.0.0",
+  "description": "A compact Windows 11 widget for Codex quota balances.",
+  "type": "module",
+  "main": "app/main.js",
+  "author": "doraasn",
+  "license": "MIT",
+  "repository": "https://github.com/doraasn/codex-quota-overlay",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.js",
+    "smoke": "electron scripts/smoke.cjs",
+    "verify": "npm test && npm run smoke",
+    "dist": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "electron": "43.3.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.doraasn.codexquotawidget",
+    "productName": "Codex Quota Widget",
+    "executableName": "CodexQuotaWidget",
+    "asar": true,
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "app/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/tray.png",
+        "to": "tray.png"
+      }
+    ],
+    "artifactName": "CodexQuotaWidget-${version}-${arch}.${ext}",
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        "portable"
+      ]
+    }
+  }
+}

@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {quotaColor, remainingPercent, resetLabel, toWidgetState} from '../app/quota-format.js';
+
+test('converts used quota to remaining quota', () => {
+  assert.equal(remainingPercent(27.4), 73);
+  assert.equal(remainingPercent(undefined), null);
+});
+
+test('uses the requested color thresholds', () => {
+  assert.equal(quotaColor(80), '#43c982');
+  assert.equal(quotaColor(79), '#efb83f');
+  assert.equal(quotaColor(9), '#ff6262');
+});
+
+test('formats today and tomorrow reset labels', () => {
+  const now = new Date(2026, 7, 28, 12, 0);
+  assert.match(resetLabel(new Date(2026, 7, 28, 18, 20).getTime() / 1000, now), /^今天 /);
+  assert.match(resetLabel(new Date(2026, 7, 29, 1, 30).getTime() / 1000, now), /^明天 /);
+});
+
+test('maps the app-server response into two fixed windows', () => {
+  const state = toWidgetState({
+    rateLimits: {
+      primary: {usedPercent: 15, resetsAt: 1_788_000_000},
+      secondary: {usedPercent: 55, resetsAt: 1_788_600_000}
+    },
+    rateLimitResetCredits: {availableCount: 2}
+  });
+  assert.equal(state.fiveHour.remaining, 85);
+  assert.equal(state.weekly.remaining, 45);
+  assert.equal(state.resets, 2);
+});

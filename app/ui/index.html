@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'" />
+    <link rel="stylesheet" href="style.css" />
+    <title>Codex Quota Widget</title>
+  </head>
+  <body>
+    <main id="widget" role="status">
+      <section class="quota" data-key="fiveHour">
+        <div class="ring"><strong>--</strong></div>
+        <div class="copy"><div class="title">5 小时</div><div class="reset">时间未知</div></div>
+      </section>
+      <section class="quota" data-key="weekly">
+        <div class="ring"><strong>--</strong></div>
+        <div class="copy"><div class="title">周 <span id="resets">· 重置 0</span></div><div class="reset">时间未知</div></div>
+      </section>
+    </main>
+    <script type="module" src="ui.js"></script>
+  </body>
+</html>
