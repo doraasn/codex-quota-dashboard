@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {execFile} from 'node:child_process';
 import {app, BrowserWindow, ipcMain, Menu, nativeImage, screen, Tray} from 'electron';
 import {emptyWidgetState} from './quota-format.js';
 import {locateCodex, QuotaClient} from './quota-client.js';
@@ -22,7 +21,6 @@ let measuredSize = {...initialSize};
 
 app.setPath('userData', path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'CodexQuotaDashboard'));
 const shutdownOnly = process.argv.includes('--shutdown');
-const waitForCodex = process.argv.includes('--follow-codex');
 const ownsLock = app.requestSingleInstanceLock();
 
 if (!ownsLock || shutdownOnly) {
@@ -34,17 +32,18 @@ if (!ownsLock || shutdownOnly) {
   });
 }
 
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
   if (!ownsLock || shutdownOnly) return;
   app.setAppUserModelId('com.doraasn.codexquotadashboard');
-  if (waitForCodex && !(await codexIsRunning())) {
-    const timer = setInterval(async () => {
-      if (!(await codexIsRunning())) return;
-      clearInterval(timer);
-      start();
-    }, 1000);
-    timer.unref?.();
-    return;
+  // 清理旧版本可能留下的登录启动项；新版仅支持用户手动启动。
+  if (process.platform === 'win32') {
+    for (const name of [
+      'com.cpys.codexquotaoverlay',
+      'com.doraasn.codexquotawidget',
+      'com.doraasn.codexquotadashboard'
+    ]) {
+      app.setLoginItemSettings({name, openAtLogin: false});
+    }
   }
   start();
 });
@@ -114,11 +113,9 @@ function createTray() {
 }
 
 function updateTrayMenu() {
-  const follows = followsCodexAtLogin();
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {label: '刷新额度', click: requestQuota},
-      {label: `跟随 Codex 启动${follows ? '  ✓' : ''}`, click: () => setFollowCodex(!follows)},
       {type: 'separator'},
       {label: '退出', click: quit}
     ])
@@ -183,25 +180,6 @@ function reveal() {
   if (window.isMinimized()) window.restore();
   window.setAlwaysOnTop(true, 'screen-saver');
   if (!window.isVisible()) window.showInactive();
-}
-
-function followsCodexAtLogin() {
-  return process.platform === 'win32' && app.getLoginItemSettings(loginTarget()).openAtLogin;
-}
-
-function setFollowCodex(enabled) {
-  app.setLoginItemSettings({...loginTarget(), openAtLogin: enabled, openAsHidden: true});
-  updateTrayMenu();
-}
-
-function loginTarget() {
-  return {path: process.execPath, args: app.isPackaged ? ['--follow-codex'] : [projectDir, '--follow-codex']};
-}
-
-function codexIsRunning() {
-  return new Promise((resolve) => {
-    execFile('tasklist.exe', ['/FI', 'IMAGENAME eq codex.exe', '/NH'], {windowsHide: true}, (_error, output) => resolve(/codex\.exe/i.test(output || '')));
-  });
 }
 
 function defaultPosition() {
