@@ -1,4 +1,4 @@
-# Codex Quota Widget
+# Codex Quota Dashboard
 
 一个为 Windows 11 设计的轻量 Codex 额度悬浮窗。
 
@@ -28,4 +28,4 @@ npm start
 npm run dist
 ```
 
-产物位于 `release/CodexQuotaWidget-1.0.0-x64.exe`。
+产物位于 `release/CodexQuotaDashboard-1.0.1-x64.exe`。

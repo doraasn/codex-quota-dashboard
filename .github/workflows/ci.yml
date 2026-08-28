@@ -23,5 +23,5 @@ jobs:
       - run: npm run dist
       - uses: actions/upload-artifact@v4
         with:
-          name: CodexQuotaWidget
-          path: release/CodexQuotaWidget-*-x64.exe
+          name: CodexQuotaDashboard
+          path: release/CodexQuotaDashboard-*-x64.exe

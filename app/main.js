@@ -20,7 +20,7 @@ let layerTimer;
 let closing = false;
 let measuredSize = {...initialSize};
 
-app.setPath('userData', path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'CodexQuotaWidget'));
+app.setPath('userData', path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'CodexQuotaDashboard'));
 const shutdownOnly = process.argv.includes('--shutdown');
 const waitForCodex = process.argv.includes('--follow-codex');
 const ownsLock = app.requestSingleInstanceLock();
@@ -36,7 +36,7 @@ if (!ownsLock || shutdownOnly) {
 
 app.whenReady().then(async () => {
   if (!ownsLock || shutdownOnly) return;
-  app.setAppUserModelId('com.doraasn.codexquotawidget');
+  app.setAppUserModelId('com.doraasn.codexquotadashboard');
   if (waitForCodex && !(await codexIsRunning())) {
     const timer = setInterval(async () => {
       if (!(await codexIsRunning())) return;
@@ -78,7 +78,7 @@ async function createWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     hasShadow: false,
-    title: 'Codex Quota Widget',
+    title: 'Codex Quota Dashboard',
     webPreferences: {
       preload: path.join(appDir, 'preload.cjs'),
       contextIsolation: true,

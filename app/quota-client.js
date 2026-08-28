@@ -47,7 +47,7 @@ export class QuotaClient extends EventEmitter {
     });
     const output = readline.createInterface({input: this.#child.stdout, crlfDelay: Infinity});
     output.on('line', (line) => this.#receive(line));
-    this.#write({id: 1, method: 'initialize', params: {clientInfo: {name: 'codex_quota_widget', version: '1.0.0'}}});
+    this.#write({id: 1, method: 'initialize', params: {clientInfo: {name: 'codex_quota_dashboard', version: '1.0.1'}}});
   }
 
   refresh() {
