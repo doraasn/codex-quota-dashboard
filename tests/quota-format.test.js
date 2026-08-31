@@ -42,6 +42,14 @@ test('maps the DeepSeek balance response into a compact balance circle', () => {
   assert.equal(state.color, '#43c982');
 });
 
+test('shows today DeepSeek spend when the platform token is configured', () => {
+  const balance = {is_available: true, balance_infos: [{currency: 'CNY', total_balance: '110.00'}]};
+  assert.equal(toDeepSeekWidgetState(balance, {todaySpent: 18.1194577, usageConfigured: true}).reset, '今日 ¥18.12');
+  assert.equal(toDeepSeekWidgetState(balance, {todaySpent: 0, usageConfigured: true}).reset, '今日 ¥0');
+  assert.equal(toDeepSeekWidgetState(balance, {todaySpent: null, usageConfigured: true}).reset, '今日 --');
+  assert.equal(toDeepSeekWidgetState(balance, {todaySpent: null, usageConfigured: false}).reset, 'CNY');
+});
+
 test('shows DeepSeek configuration and request states', () => {
   assert.equal(toDeepSeekWidgetState(null, {missingKey: true}).reset, '未配置');
   assert.equal(toDeepSeekWidgetState(null, {error: new Error('failed')}).reset, '请求失败');

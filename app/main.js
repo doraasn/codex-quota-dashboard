@@ -131,9 +131,9 @@ function connect() {
   client.start(executable);
 }
 
-function requestBalances() {
+function requestBalances(forceUsage = false) {
   requestQuota();
-  deepSeekClient?.refresh();
+  deepSeekClient?.refresh(forceUsage);
 }
 
 function requestQuota() {
@@ -177,7 +177,7 @@ ipcMain.on('widget:menu', (event) => {
 
 ipcMain.on('widget:refresh', (event) => {
   if (!window || event.sender !== window.webContents) return;
-  requestBalances();
+  requestBalances(true);
 });
 
 ipcMain.on('widget:drag', (event, movement) => {
