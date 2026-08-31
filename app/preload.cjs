@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('quotaWidget', {
   resize(value) {
     ipcRenderer.send('widget:resize', value);
   },
+  refresh() {
+    ipcRenderer.send('widget:refresh');
+  },
   openMenu() {
     ipcRenderer.send('widget:menu');
   }

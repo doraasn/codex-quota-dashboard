@@ -1,12 +1,14 @@
 :root { font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif; color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { margin: 0; width: max-content; height: max-content; overflow: hidden; background: transparent; user-select: none; }
-#widget { display: flex; align-items: center; gap: 10px; width: max-content; padding: 5px 8px; border: 1px solid rgb(79 84 96 / 92%); border-radius: 12px; background: rgb(29 31 37 / 97%); box-shadow: 0 4px 14px rgb(0 0 0 / 28%); color: #f6f7f9; cursor: move; -webkit-app-region: drag; }
+#widget { display: flex; align-items: center; gap: 9px; width: max-content; padding: 5px 8px; border: 1px solid rgb(79 84 96 / 92%); border-radius: 12px; background: rgb(29 31 37 / 97%); box-shadow: 0 4px 14px rgb(0 0 0 / 28%); color: #f6f7f9; cursor: move; -webkit-app-region: drag; }
 .quota { display: flex; min-height: 30px; align-items: center; gap: 6px; }
 .ring { --value: 0%; --color: #9aa3af; position: relative; display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 50%; background: conic-gradient(var(--color) var(--value), rgb(255 255 255 / 12%) 0); }
 .ring::before { position: absolute; inset: 3px; border-radius: inherit; background: #202229; content: ""; }
-.ring strong { position: relative; font-size: 13px; font-weight: 700; line-height: 14px; }
+.ring strong { position: relative; max-width: 22px; overflow: hidden; font-size: 13px; font-weight: 700; line-height: 14px; text-align: center; text-overflow: clip; white-space: nowrap; }
+#widget.refreshing .ring::after { position: absolute; inset: -1px; border-radius: inherit; border: 2px solid transparent; border-top-color: rgb(255 255 255 / 78%); content: ""; animation: spin 0.72s linear infinite; }
 .copy { display: flex; flex-direction: column; }
 .title { font-size: 12px; font-weight: 600; line-height: 15px; white-space: nowrap; }
 #resets, .reset { color: #cbd0d8; font-size: 11px; font-weight: 500; }
 .reset { line-height: 14px; white-space: nowrap; }
+@keyframes spin { to { transform: rotate(360deg); } }

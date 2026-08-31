@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {quotaColor, remainingPercent, resetLabel, toWidgetState} from '../app/quota-format.js';
+import {quotaColor, remainingPercent, resetLabel, toDeepSeekWidgetState, toWidgetState} from '../app/quota-format.js';
 
 test('converts used quota to remaining quota', () => {
   assert.equal(remainingPercent(27.4), 73);
@@ -30,4 +30,19 @@ test('maps the app-server response into two fixed windows', () => {
   assert.equal(state.fiveHour.remaining, 85);
   assert.equal(state.weekly.remaining, 45);
   assert.equal(state.resets, 2);
+});
+
+test('maps the DeepSeek balance response into a compact balance circle', () => {
+  const state = toDeepSeekWidgetState({
+    is_available: true,
+    balance_infos: [{currency: 'CNY', total_balance: '110.00'}]
+  });
+  assert.equal(state.remaining, '110');
+  assert.equal(state.reset, 'CNY');
+  assert.equal(state.color, '#43c982');
+});
+
+test('shows DeepSeek configuration and request states', () => {
+  assert.equal(toDeepSeekWidgetState(null, {missingKey: true}).reset, '未配置');
+  assert.equal(toDeepSeekWidgetState(null, {error: new Error('failed')}).reset, '请求失败');
 });

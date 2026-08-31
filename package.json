@@ -1,7 +1,7 @@
 {
   "name": "codex-quota-dashboard",
-  "version": "1.0.2",
-  "description": "A compact Windows 11 dashboard for Codex quota balances.",
+  "version": "1.0.4",
+  "description": "A compact Windows 11 dashboard for Codex quota and DeepSeek balances.",
   "type": "module",
   "main": "app/main.js",
   "author": "doraasn",

@@ -44,10 +44,43 @@ export function toWidgetState(result, now = new Date()) {
   };
 }
 
+function compactAmount(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return null;
+  if (Math.abs(amount) >= 1000) return `${Math.round(amount / 100) / 10}k`;
+  if (Math.abs(amount) >= 100) return String(Math.round(amount));
+  if (Math.abs(amount) >= 10) return amount.toFixed(1).replace(/\.0$/, '');
+  return amount.toFixed(2).replace(/\.?0+$/, '');
+}
+
+export function toDeepSeekWidgetState(result, options = {}) {
+  if (options.missingKey) {
+    return {name: 'DeepSeek', remaining: null, color: quotaColor(null), reset: '未配置'};
+  }
+  if (options.error) {
+    return {name: 'DeepSeek', remaining: null, color: '#ff6262', reset: '请求失败'};
+  }
+
+  const balances = Array.isArray(result?.balance_infos) ? result.balance_infos : [];
+  const preferred = balances.find((item) => item?.currency === 'CNY') || balances.find((item) => item?.currency === 'USD') || balances[0];
+  const amount = Number(preferred?.total_balance);
+  if (!preferred || !Number.isFinite(amount)) {
+    return {name: 'DeepSeek', remaining: null, color: quotaColor(null), reset: '余额未知'};
+  }
+
+  return {
+    name: 'DeepSeek',
+    remaining: compactAmount(amount),
+    color: result?.is_available && amount > 0 ? '#43c982' : '#ff6262',
+    reset: preferred.currency || '余额'
+  };
+}
+
 export function emptyWidgetState() {
   return {
     fiveHour: {name: '5 小时', remaining: null, color: quotaColor(null), reset: '时间未知'},
     weekly: {name: '周', remaining: null, color: quotaColor(null), reset: '时间未知'},
+    deepseek: {name: 'DeepSeek', remaining: null, color: quotaColor(null), reset: '未配置'},
     resets: 0
   };
 }

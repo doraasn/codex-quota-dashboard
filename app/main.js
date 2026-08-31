@@ -4,20 +4,23 @@ import {fileURLToPath} from 'node:url';
 import {app, BrowserWindow, ipcMain, Menu, nativeImage, screen, Tray} from 'electron';
 import {emptyWidgetState} from './quota-format.js';
 import {locateCodex, QuotaClient} from './quota-client.js';
+import {DeepSeekClient} from './deepseek-client.js';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(appDir, '..');
 const refreshEveryMs = 5000;
 const layerDelayMs = 120;
-const initialSize = {width: 270, height: 46};
+const initialSize = {width: 360, height: 46};
 
 let window;
 let tray;
 let client;
+let deepSeekClient;
 let refreshTimer;
 let layerTimer;
 let closing = false;
 let measuredSize = {...initialSize};
+let widgetState = emptyWidgetState();
 
 app.setPath('userData', path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'CodexQuotaDashboard'));
 const shutdownOnly = process.argv.includes('--shutdown');
@@ -35,16 +38,6 @@ if (!ownsLock || shutdownOnly) {
 app.whenReady().then(() => {
   if (!ownsLock || shutdownOnly) return;
   app.setAppUserModelId('com.doraasn.codexquotadashboard');
-  // 清理旧版本可能留下的登录启动项；新版仅支持用户手动启动。
-  if (process.platform === 'win32') {
-    for (const name of [
-      'com.cpys.codexquotaoverlay',
-      'com.doraasn.codexquotawidget',
-      'com.doraasn.codexquotadashboard'
-    ]) {
-      app.setLoginItemSettings({name, openAtLogin: false});
-    }
-  }
   start();
 });
 
@@ -55,7 +48,10 @@ async function start() {
   await createWindow();
   createTray();
   connect();
-  refreshTimer = setInterval(requestQuota, refreshEveryMs);
+  deepSeekClient = new DeepSeekClient(app.getPath('userData'));
+  deepSeekClient.on('balance', applyDeepSeekState);
+  requestBalances();
+  refreshTimer = setInterval(requestBalances, refreshEveryMs);
   refreshTimer.unref?.();
 }
 
@@ -100,7 +96,7 @@ async function createWindow() {
   });
   window.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
   await window.loadFile(path.join(appDir, 'ui', 'index.html'));
-  sendState(emptyWidgetState());
+  sendState(widgetState);
   window.showInactive();
 }
 
@@ -115,7 +111,7 @@ function createTray() {
 function updateTrayMenu() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      {label: '刷新额度', click: requestQuota},
+      {label: '刷新额度', click: requestBalances},
       {type: 'separator'},
       {label: '退出', click: quit}
     ])
@@ -129,14 +125,34 @@ function connect() {
     return;
   }
   client = new QuotaClient();
-  client.on('quota', sendState);
-  client.on('offline', () => sendState(emptyWidgetState()));
+  client.on('quota', applyCodexState);
+  client.on('offline', () => applyCodexState(emptyWidgetState()));
   client.start(executable);
+}
+
+function requestBalances() {
+  requestQuota();
+  deepSeekClient?.refresh();
 }
 
 function requestQuota() {
   if (!client) connect();
   client?.refresh();
+}
+
+function applyCodexState(state) {
+  widgetState = {
+    ...widgetState,
+    fiveHour: state.fiveHour,
+    weekly: state.weekly,
+    resets: state.resets
+  };
+  sendState(widgetState);
+}
+
+function applyDeepSeekState(state) {
+  widgetState = {...widgetState, deepseek: state};
+  sendState(widgetState);
 }
 
 function sendState(state) {
@@ -156,6 +172,11 @@ ipcMain.on('widget:resize', (event, size) => {
 ipcMain.on('widget:menu', (event) => {
   if (!window || event.sender !== window.webContents) return;
   Menu.buildFromTemplate([{label: '退出', click: quit}]).popup({window});
+});
+
+ipcMain.on('widget:refresh', (event) => {
+  if (!window || event.sender !== window.webContents) return;
+  requestBalances();
 });
 
 function scheduleLayerRepair() {
@@ -223,4 +244,5 @@ function dispose() {
   savePosition();
   client?.stop();
   client = null;
+  deepSeekClient = null;
 }

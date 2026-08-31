@@ -3,7 +3,9 @@ const {app, BrowserWindow, ipcMain} = require('electron');
 
 const timeout = setTimeout(() => app.exit(2), 12000);
 let menuRequested = false;
+let refreshRequested = false;
 ipcMain.once('widget:menu', () => { menuRequested = true; });
+ipcMain.once('widget:refresh', () => { refreshRequested = true; });
 
 app.whenReady().then(async () => {
   const window = new BrowserWindow({
@@ -23,6 +25,7 @@ app.whenReady().then(async () => {
   window.webContents.send('quota:update', {
     fiveHour: {remaining: 81, color: '#43c982', reset: '今天 18:20'},
     weekly: {remaining: 42, color: '#efb83f', reset: '9月1日 00:00'},
+    deepseek: {remaining: '110', color: '#43c982', reset: 'CNY'},
     resets: 2
   });
   await new Promise((resolve) => setTimeout(resolve, 80));
@@ -34,12 +37,16 @@ app.whenReady().then(async () => {
     width: Math.ceil(document.querySelector('#widget').getBoundingClientRect().width),
     height: Math.ceil(document.querySelector('#widget').getBoundingClientRect().height)
   }))()`);
-  if (result.values.join('/') !== '81/42' || result.resetCount !== '· 重置 2' || result.direction !== 'flex' || result.circleFont !== '13px' || result.width < 200 || result.width > 330 || result.height < 36 || result.height > 55) {
+  if (result.values.join('/') !== '81/42/110' || result.resetCount !== '· 重置 2' || result.direction !== 'flex' || result.circleFont !== '13px' || result.width < 260 || result.width > 420 || result.height < 36 || result.height > 55) {
     throw new Error(JSON.stringify(result));
   }
   await window.webContents.executeJavaScript(`document.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))`);
   await new Promise((resolve) => setTimeout(resolve, 40));
   if (!menuRequested) throw new Error('Context menu bridge failed');
+  await window.webContents.executeJavaScript(`document.dispatchEvent(new MouseEvent('dblclick', {bubbles: true, cancelable: true}))`);
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  const refreshing = await window.webContents.executeJavaScript(`document.querySelector('#widget').classList.contains('refreshing')`);
+  if (!refreshRequested || !refreshing) throw new Error('Double-click refresh bridge failed');
   console.log(`SMOKE_OK ${result.values.join('/')} ${result.width}x${result.height}`);
   clearTimeout(timeout);
   window.destroy();
