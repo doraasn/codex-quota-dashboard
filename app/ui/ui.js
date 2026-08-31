@@ -1,5 +1,6 @@
 const widget = document.querySelector('#widget');
 let loadingTimer;
+let dragPoint = null;
 
 function draw(key, value) {
   const root = document.querySelector(`[data-key="${key}"]`);
@@ -42,6 +43,24 @@ window.quotaWidget.onUpdate((state) => {
 document.addEventListener('dblclick', (event) => {
   event.preventDefault();
   startManualRefresh();
+});
+
+document.addEventListener('mousedown', (event) => {
+  if (event.button !== 0) return;
+  dragPoint = {x: event.screenX, y: event.screenY};
+});
+
+document.addEventListener('mousemove', (event) => {
+  if (!dragPoint || event.buttons !== 1) return;
+  const dx = event.screenX - dragPoint.x;
+  const dy = event.screenY - dragPoint.y;
+  if (!dx && !dy) return;
+  dragPoint = {x: event.screenX, y: event.screenY};
+  window.quotaWidget.drag({dx, dy});
+});
+
+document.addEventListener('mouseup', () => {
+  dragPoint = null;
 });
 
 document.addEventListener('contextmenu', (event) => {

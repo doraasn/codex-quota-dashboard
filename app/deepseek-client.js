@@ -8,11 +8,11 @@ const timeoutMs = 8000;
 
 export class DeepSeekClient extends EventEmitter {
   #pending = false;
-  #configDir;
+  #configFiles;
 
-  constructor(configDir) {
+  constructor(configFiles) {
     super();
-    this.#configDir = configDir;
+    this.#configFiles = Array.isArray(configFiles) ? configFiles : [];
   }
 
   refresh() {
@@ -45,8 +45,11 @@ export class DeepSeekClient extends EventEmitter {
 
   #readConfig() {
     try {
-      const file = path.join(this.#configDir, 'deepseek.json');
-      const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const file = this.#configFiles.find((candidate) => fs.existsSync(candidate));
+      if (!file) return {};
+      const raw = fs.readFileSync(file, 'utf8').trim();
+      if (!raw) return {};
+      const config = JSON.parse(raw);
       return {
         apiKey: typeof config.apiKey === 'string' ? config.apiKey.trim() : '',
         baseUrl: typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''

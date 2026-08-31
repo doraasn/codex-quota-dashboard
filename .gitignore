@@ -1,5 +1,7 @@
 /node_modules/
 /release/
+/config/deepseek.json
+/data/
 *.log
 .DS_Store
 Thumbs.db

@@ -7,7 +7,8 @@ import {locateCodex, QuotaClient} from './quota-client.js';
 import {DeepSeekClient} from './deepseek-client.js';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
-const projectDir = path.resolve(appDir, '..');
+const sourceProjectDir = path.resolve(appDir, '..');
+const runtimeDir = resolveRuntimeDir();
 const refreshEveryMs = 5000;
 const layerDelayMs = 120;
 const initialSize = {width: 360, height: 46};
@@ -22,7 +23,7 @@ let closing = false;
 let measuredSize = {...initialSize};
 let widgetState = emptyWidgetState();
 
-app.setPath('userData', path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'CodexQuotaDashboard'));
+app.setPath('userData', path.join(runtimeDir, 'data'));
 const shutdownOnly = process.argv.includes('--shutdown');
 const ownsLock = app.requestSingleInstanceLock();
 
@@ -48,7 +49,7 @@ async function start() {
   await createWindow();
   createTray();
   connect();
-  deepSeekClient = new DeepSeekClient(app.getPath('userData'));
+  deepSeekClient = new DeepSeekClient(deepSeekConfigFiles());
   deepSeekClient.on('balance', applyDeepSeekState);
   requestBalances();
   refreshTimer = setInterval(requestBalances, refreshEveryMs);
@@ -101,7 +102,7 @@ async function createWindow() {
 }
 
 function createTray() {
-  const resource = app.isPackaged ? path.join(process.resourcesPath, 'tray.png') : path.join(projectDir, 'assets', 'tray.png');
+  const resource = app.isPackaged ? path.join(process.resourcesPath, 'tray.png') : path.join(sourceProjectDir, 'assets', 'tray.png');
   tray = new Tray(nativeImage.createFromPath(resource));
   tray.setToolTip('Codex 额度');
   tray.on('click', reveal);
@@ -179,6 +180,15 @@ ipcMain.on('widget:refresh', (event) => {
   requestBalances();
 });
 
+ipcMain.on('widget:drag', (event, movement) => {
+  if (!window || event.sender !== window.webContents) return;
+  const dx = Math.trunc(Number(movement?.dx) || 0);
+  const dy = Math.trunc(Number(movement?.dy) || 0);
+  if (!dx && !dy) return;
+  const [x, y] = window.getPosition();
+  window.setPosition(x + dx, y + dy, false);
+});
+
 function scheduleLayerRepair() {
   if (!window || !overlapsTaskbar()) return;
   clearTimeout(layerTimer);
@@ -206,6 +216,18 @@ function reveal() {
 function defaultPosition() {
   const work = screen.getPrimaryDisplay().workArea;
   return {x: work.x + work.width - initialSize.width - 20, y: work.y + work.height - initialSize.height - 20};
+}
+
+function resolveRuntimeDir() {
+  const portableFile = process.env.PORTABLE_EXECUTABLE_FILE;
+  if (!portableFile) return sourceProjectDir;
+  const portableDir = path.dirname(portableFile);
+  return path.basename(portableDir).toLowerCase() === 'release' ? path.dirname(portableDir) : portableDir;
+}
+
+function deepSeekConfigFiles() {
+  const files = [path.join(runtimeDir, 'config', 'deepseek.json'), path.join(sourceProjectDir, 'config', 'deepseek.json')];
+  return [...new Set(files.map((file) => path.resolve(file)))];
 }
 
 function positionPath() {
