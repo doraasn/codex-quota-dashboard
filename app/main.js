@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {app, BrowserWindow, ipcMain, Menu, nativeImage, screen, Tray} from 'electron';
@@ -10,6 +11,7 @@ const appDir = path.dirname(fileURLToPath(import.meta.url));
 const sourceProjectDir = path.resolve(appDir, '..');
 const runtimeDir = resolveRuntimeDir();
 const refreshEveryMs = 5000;
+const reconnectDelayMs = 1000;
 const layerDelayMs = 120;
 const initialSize = {width: 360, height: 46};
 
@@ -18,10 +20,15 @@ let tray;
 let client;
 let deepSeekClient;
 let refreshTimer;
+let reconnectTimer;
 let layerTimer;
 let closing = false;
 let measuredSize = {...initialSize};
 let widgetState = emptyWidgetState();
+let authSignature;
+let rpcReady = false;
+let lastDiagnosticKey = '';
+let lastDiagnosticAt = 0;
 
 app.setPath('userData', path.join(runtimeDir, 'data'));
 const shutdownOnly = process.argv.includes('--shutdown');
@@ -48,8 +55,13 @@ async function start() {
   if (window || closing) return;
   await createWindow();
   createTray();
+  authSignature = readAuthSignature();
+  writeDiagnostic('app-start');
   connect();
-  deepSeekClient = new DeepSeekClient(deepSeekConfigFiles());
+  deepSeekClient = new DeepSeekClient(
+    deepSeekConfigFiles(),
+    path.join(app.getPath('userData'), 'deepseek-daily.json')
+  );
   deepSeekClient.on('balance', applyDeepSeekState);
   requestBalances();
   refreshTimer = setInterval(requestBalances, refreshEveryMs);
@@ -112,7 +124,7 @@ function createTray() {
 function updateTrayMenu() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      {label: '刷新额度', click: requestBalances},
+      {label: '刷新额度', click: () => requestBalances(true)},
       {type: 'separator'},
       {label: '退出', click: quit}
     ])
@@ -120,18 +132,42 @@ function updateTrayMenu() {
 }
 
 function connect() {
+  if (client || closing) return;
   const executable = locateCodex();
   if (!executable) {
-    sendState(emptyWidgetState());
+    writeDiagnostic('codex-not-found');
+    scheduleReconnect();
     return;
   }
-  client = new QuotaClient();
-  client.on('quota', applyCodexState);
-  client.on('offline', () => applyCodexState(emptyWidgetState()));
-  client.start(executable);
+  const nextClient = new QuotaClient();
+  client = nextClient;
+  nextClient.on('quota', (state) => {
+    if (client !== nextClient) return;
+    if (!rpcReady) writeDiagnostic('rpc-ready');
+    rpcReady = true;
+    applyCodexState(state);
+  });
+  nextClient.on('diagnostic', (event) => writeDiagnostic(event.code, {windows: event.windows}));
+  nextClient.on('account-changed', () => reconnectCodex(nextClient, 'account-notification'));
+  nextClient.on('offline', (issue) => {
+    if (client !== nextClient) return;
+    writeDiagnostic('rpc-offline', issue);
+    reconnectCodex(nextClient);
+  });
+  nextClient.start(executable);
+}
+
+function reconnectCodex(currentClient, event) {
+  if (client !== currentClient) return;
+  if (event) writeDiagnostic(event);
+  rpcReady = false;
+  currentClient.stop();
+  client = null;
+  scheduleReconnect();
 }
 
 function requestBalances(forceUsage = false) {
+  reconnectWhenAuthChanges();
   requestQuota();
   deepSeekClient?.refresh(forceUsage);
 }
@@ -139,6 +175,63 @@ function requestBalances(forceUsage = false) {
 function requestQuota() {
   if (!client) connect();
   client?.refresh();
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer || closing) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, reconnectDelayMs);
+  reconnectTimer.unref?.();
+}
+
+function reconnectWhenAuthChanges() {
+  const current = readAuthSignature();
+  if (authSignature === undefined) {
+    authSignature = current;
+    return;
+  }
+  if (current === authSignature) return;
+  authSignature = current;
+  writeDiagnostic('auth-changed');
+  rpcReady = false;
+  client?.stop();
+  client = null;
+  connect();
+}
+
+function readAuthSignature() {
+  try {
+    const codexRoot = process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
+    const stat = fs.statSync(path.join(codexRoot, 'auth.json'));
+    return `${stat.size}:${stat.mtimeMs}`;
+  } catch {
+    return null;
+  }
+}
+
+function writeDiagnostic(event, detail = {}) {
+  try {
+    const safeDetail = Object.fromEntries(
+      Object.entries(detail || {}).filter(([, value]) =>
+        value === null || ['string', 'number', 'boolean'].includes(typeof value)
+      )
+    );
+    const diagnosticKey = JSON.stringify({event, ...safeDetail});
+    const now = Date.now();
+    if (diagnosticKey === lastDiagnosticKey && now - lastDiagnosticAt < 60_000) return;
+    lastDiagnosticKey = diagnosticKey;
+    lastDiagnosticAt = now;
+    fs.mkdirSync(app.getPath('userData'), {recursive: true});
+    fs.appendFileSync(
+      path.join(app.getPath('userData'), 'diagnostics.log'),
+      `${JSON.stringify({time: new Date().toISOString(), event, ...safeDetail})}\n`,
+      'utf8'
+    );
+  } catch {
+    // 诊断日志不能影响额度刷新。
+  }
 }
 
 function applyCodexState(state) {
@@ -262,6 +355,7 @@ function dispose() {
   if (closing) return;
   closing = true;
   clearInterval(refreshTimer);
+  clearTimeout(reconnectTimer);
   clearTimeout(layerTimer);
   savePosition();
   client?.stop();

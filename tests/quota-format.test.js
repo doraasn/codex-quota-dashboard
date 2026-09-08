@@ -32,6 +32,22 @@ test('maps the app-server response into two fixed windows', () => {
   assert.equal(state.resets, 2);
 });
 
+test('falls back to a populated keyed limit when the legacy limit is empty', () => {
+  const state = toWidgetState({
+    rateLimits: {},
+    rateLimitsByLimitId: {
+      codex: {
+        primary: {usedPercent: 18, resetsAt: 1_788_000_000},
+        secondary: {usedPercent: 42, resetsAt: 1_788_600_000}
+      }
+    }
+  });
+  assert.equal(state.fiveHour.remaining, 82);
+  assert.equal(state.weekly.remaining, 58);
+  assert.notEqual(state.fiveHour.reset, '时间未知');
+  assert.notEqual(state.weekly.reset, '时间未知');
+});
+
 test('maps the DeepSeek balance response into a compact balance circle', () => {
   const state = toDeepSeekWidgetState({
     is_available: true,
@@ -44,10 +60,24 @@ test('maps the DeepSeek balance response into a compact balance circle', () => {
 
 test('shows today DeepSeek spend when the platform token is configured', () => {
   const balance = {is_available: true, balance_infos: [{currency: 'CNY', total_balance: '110.00'}]};
-  assert.equal(toDeepSeekWidgetState(balance, {todaySpent: 18.1194577, usageConfigured: true}).reset, '今日 ¥18.12');
+  const exact = toDeepSeekWidgetState(balance, {todaySpent: 18.1194577, usageConfigured: true});
+  assert.equal(exact.reset, '今日 ¥18.12');
+  assert.ok(exact.progress > 85 && exact.progress < 86);
   assert.equal(toDeepSeekWidgetState(balance, {todaySpent: 0, usageConfigured: true}).reset, '今日 ¥0');
   assert.equal(toDeepSeekWidgetState(balance, {todaySpent: null, usageConfigured: true}).reset, '今日 --');
   assert.equal(toDeepSeekWidgetState(balance, {todaySpent: null, usageConfigured: false}).reset, 'CNY');
+});
+
+test('uses the daily balance estimate when platform usage is unavailable', () => {
+  const balance = {is_available: true, balance_infos: [{currency: 'CNY', total_balance: '90.00'}]};
+  const state = toDeepSeekWidgetState(balance, {
+    todaySpent: null,
+    usageConfigured: true,
+    estimatedSpent: 10
+  });
+  assert.equal(state.reset, '今日约 ¥10');
+  assert.equal(state.progress, 90);
+  assert.equal(state.todaySpent, 10);
 });
 
 test('shows DeepSeek configuration and request states', () => {

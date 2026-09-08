@@ -26,8 +26,10 @@ export function resetLabel(unixSeconds, now = new Date()) {
 
 export function toWidgetState(result, now = new Date()) {
   const keyed = result?.rateLimitsByLimitId;
-  const firstKeyed = keyed && typeof keyed === 'object' ? Object.values(keyed)[0] : null;
-  const limits = result?.rateLimits ?? firstKeyed;
+  const keyedLimits = keyed && typeof keyed === 'object' ? Object.values(keyed) : [];
+  const candidates = [result?.rateLimits, ...keyedLimits];
+  // 某些账号状态切换期间 rateLimits 会短暂返回空对象，优先选择真正包含额度窗口的数据。
+  const limits = candidates.find((value) => hasQuotaWindow(value)) ?? result?.rateLimits ?? keyedLimits[0];
   const buildWindow = (name, source) => {
     const remaining = remainingPercent(source?.usedPercent);
     return {
@@ -42,6 +44,10 @@ export function toWidgetState(result, now = new Date()) {
     weekly: buildWindow('周', limits?.secondary),
     resets: Math.max(0, Math.trunc(Number(result?.rateLimitResetCredits?.availableCount) || 0))
   };
+}
+
+function hasQuotaWindow(value) {
+  return Number.isFinite(Number(value?.primary?.usedPercent)) || Number.isFinite(Number(value?.secondary?.usedPercent));
 }
 
 function compactAmount(value) {
@@ -62,7 +68,7 @@ export function formatSpent(value) {
   return amount.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
 }
 
-const deepSeekMissing = (reset) => ({name: 'DeepSeek', remaining: null, color: quotaColor(null), reset, todaySpent: null});
+const deepSeekMissing = (reset) => ({name: 'DeepSeek', remaining: null, progress: null, color: quotaColor(null), reset, todaySpent: null});
 
 export function toDeepSeekWidgetState(result, options = {}) {
   if (options.missingKey) {
@@ -79,15 +85,20 @@ export function toDeepSeekWidgetState(result, options = {}) {
     return deepSeekMissing('余额未知');
   }
 
-  const spent = options.todaySpent === null || options.todaySpent === undefined ? NaN : Number(options.todaySpent);
+  const platformSpent = options.todaySpent === null || options.todaySpent === undefined ? NaN : Number(options.todaySpent);
+  const estimatedSpent = options.estimatedSpent === null || options.estimatedSpent === undefined ? NaN : Number(options.estimatedSpent);
+  const spent = Number.isFinite(platformSpent) ? platformSpent : estimatedSpent;
   const usageConfigured = Boolean(options.usageConfigured);
   let reset = preferred.currency || '余额';
-  if (usageConfigured) {
-    reset = Number.isFinite(spent) ? `今日 ¥${formatSpent(spent)}` : '今日 --';
-  }
+  if (Number.isFinite(platformSpent)) reset = `今日 ¥${formatSpent(platformSpent)}`;
+  else if (Number.isFinite(estimatedSpent)) reset = `今日约 ¥${formatSpent(estimatedSpent)}`;
+  else if (usageConfigured) reset = '今日 --';
+  const dailyTotal = Number.isFinite(spent) ? amount + Math.max(0, spent) : amount;
+  const progress = dailyTotal > 0 ? Math.max(0, Math.min(100, amount / dailyTotal * 100)) : 0;
   return {
     name: 'DeepSeek',
     remaining: compactAmount(amount),
+    progress,
     color: result?.is_available && amount > 0 ? '#43c982' : '#ff6262',
     reset,
     todaySpent: Number.isFinite(spent) ? spent : null
@@ -98,7 +109,7 @@ export function emptyWidgetState() {
   return {
     fiveHour: {name: '5 小时', remaining: null, color: quotaColor(null), reset: '时间未知'},
     weekly: {name: '周', remaining: null, color: quotaColor(null), reset: '时间未知'},
-    deepseek: {name: 'DeepSeek', remaining: null, color: quotaColor(null), reset: '未配置', todaySpent: null},
+    deepseek: {name: 'DeepSeek', remaining: null, progress: null, color: quotaColor(null), reset: '未配置', todaySpent: null},
     resets: 0
   };
 }

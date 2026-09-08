@@ -8,8 +8,10 @@ function draw(key, value) {
   const raw = value?.remaining;
   const remaining = Number.isFinite(raw) ? raw : null;
   const label = remaining === null ? raw : String(remaining);
+  const progress = Number(value?.progress);
+  const ringValue = Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : remaining;
   ring.querySelector('strong').textContent = label === null || label === undefined ? '--' : String(label);
-  ring.style.setProperty('--value', remaining === null ? (label ? '100%' : '0%') : `${remaining}%`);
+  ring.style.setProperty('--value', ringValue === null ? (label ? '100%' : '0%') : `${ringValue}%`);
   ring.style.setProperty('--color', value?.color || '#9aa3af');
   root.querySelector('.reset').textContent = value?.reset || '时间未知';
 }

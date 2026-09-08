@@ -25,7 +25,7 @@ app.whenReady().then(async () => {
   window.webContents.send('quota:update', {
     fiveHour: {remaining: 81, color: '#43c982', reset: '今天 18:20'},
     weekly: {remaining: 42, color: '#efb83f', reset: '9月1日 00:00'},
-    deepseek: {remaining: '110', color: '#43c982', reset: 'CNY'},
+    deepseek: {remaining: '110', progress: 90, color: '#43c982', reset: '今日约 ¥12'},
     resets: 2
   });
   await new Promise((resolve) => setTimeout(resolve, 80));
@@ -34,10 +34,11 @@ app.whenReady().then(async () => {
     resetCount: document.querySelector('#resets').textContent,
     direction: getComputedStyle(document.querySelector('#widget')).display,
     circleFont: getComputedStyle(document.querySelector('.ring strong')).fontSize,
+    deepseekRing: document.querySelector('[data-key="deepseek"] .ring').style.getPropertyValue('--value'),
     width: Math.ceil(document.querySelector('#widget').getBoundingClientRect().width),
     height: Math.ceil(document.querySelector('#widget').getBoundingClientRect().height)
   }))()`);
-  if (result.values.join('/') !== '81/42/110' || result.resetCount !== '· 重置 2' || result.direction !== 'flex' || result.circleFont !== '13px' || result.width < 260 || result.width > 420 || result.height < 36 || result.height > 55) {
+  if (result.values.join('/') !== '81/42/110' || result.resetCount !== '· 重置 2' || result.direction !== 'flex' || result.circleFont !== '13px' || result.deepseekRing !== '90%' || result.width < 260 || result.width > 420 || result.height < 36 || result.height > 55) {
     throw new Error(JSON.stringify(result));
   }
   await window.webContents.executeJavaScript(`document.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))`);

@@ -2,6 +2,7 @@ import {EventEmitter} from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 import {toDeepSeekWidgetState} from './quota-format.js';
+import {DeepSeekDailyBalanceStore} from './deepseek-daily.js';
 
 const defaultEndpoint = 'https://api.deepseek.com/user/balance';
 const usageEndpoint = 'https://platform.deepseek.com/api/v0/usage/cost';
@@ -32,10 +33,12 @@ export class DeepSeekClient extends EventEmitter {
   #configFiles;
   #usageAt = 0;
   #usageState = {configured: false, spent: null};
+  #dailyBalance;
 
-  constructor(configFiles) {
+  constructor(configFiles, dailyBalanceFile) {
     super();
     this.#configFiles = Array.isArray(configFiles) ? configFiles : [];
+    this.#dailyBalance = new DeepSeekDailyBalanceStore(dailyBalanceFile);
   }
 
   refresh(forceUsage = false) {
@@ -58,9 +61,11 @@ export class DeepSeekClient extends EventEmitter {
       this.#fetchBalance(config, apiKey),
       this.#readUsage(forceUsage)
     ]);
+    const daily = this.#dailyBalance.update(balanceAmount(balance));
     return toDeepSeekWidgetState(balance, {
       todaySpent: usage.spent,
-      usageConfigured: usage.configured
+      usageConfigured: usage.configured,
+      estimatedSpent: daily.estimatedSpent
     });
   }
 
@@ -116,4 +121,11 @@ export class DeepSeekClient extends EventEmitter {
     }
     return this.#usageState;
   }
+}
+
+function balanceAmount(result) {
+  const balances = Array.isArray(result?.balance_infos) ? result.balance_infos : [];
+  const preferred = balances.find((item) => item?.currency === 'CNY') || balances.find((item) => item?.currency === 'USD') || balances[0];
+  const amount = Number(preferred?.total_balance);
+  return Number.isFinite(amount) ? amount : NaN;
 }
