@@ -81,6 +81,6 @@ test('uses the daily balance estimate when platform usage is unavailable', () =>
 });
 
 test('shows DeepSeek configuration and request states', () => {
-  assert.equal(toDeepSeekWidgetState(null, {missingKey: true}).reset, '未配置');
+  assert.equal(toDeepSeekWidgetState(null, {missingKey: true}), null);
   assert.equal(toDeepSeekWidgetState(null, {error: new Error('failed')}).reset, '请求失败');
 });

@@ -36,7 +36,13 @@ function startManualRefresh() {
 window.quotaWidget.onUpdate((state) => {
   draw('fiveHour', state.fiveHour);
   draw('weekly', state.weekly);
-  draw('deepseek', state.deepseek);
+  const deepseekSection = document.querySelector('[data-key="deepseek"]');
+  if (state.deepseek) {
+    deepseekSection.hidden = false;
+    draw('deepseek', state.deepseek);
+  } else {
+    deepseekSection.hidden = true;
+  }
   document.querySelector('#resets').textContent = `· 重置 ${Number(state.resets) || 0}`;
   if (widget.classList.contains('refreshing')) stopLoadingSoon();
   requestAnimationFrame(measure);

@@ -72,7 +72,7 @@ const deepSeekMissing = (reset) => ({name: 'DeepSeek', remaining: null, progress
 
 export function toDeepSeekWidgetState(result, options = {}) {
   if (options.missingKey) {
-    return deepSeekMissing('未配置');
+    return null;
   }
   if (options.error) {
     return {...deepSeekMissing('请求失败'), color: '#ff6262'};
@@ -109,7 +109,7 @@ export function emptyWidgetState() {
   return {
     fiveHour: {name: '5 小时', remaining: null, color: quotaColor(null), reset: '时间未知'},
     weekly: {name: '周', remaining: null, color: quotaColor(null), reset: '时间未知'},
-    deepseek: {name: 'DeepSeek', remaining: null, progress: null, color: quotaColor(null), reset: '未配置', todaySpent: null},
+    deepseek: null,
     resets: 0
   };
 }
