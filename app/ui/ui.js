@@ -38,10 +38,10 @@ window.quotaWidget.onUpdate((state) => {
   draw('weekly', state.weekly);
   const deepseekSection = document.querySelector('[data-key="deepseek"]');
   if (state.deepseek) {
-    deepseekSection.hidden = false;
+    deepseekSection.style.display = '';
     draw('deepseek', state.deepseek);
   } else {
-    deepseekSection.hidden = true;
+    deepseekSection.style.display = 'none';
   }
   document.querySelector('#resets').textContent = `· 重置 ${Number(state.resets) || 0}`;
   if (widget.classList.contains('refreshing')) stopLoadingSoon();
